@@ -1,0 +1,118 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/8b917184-acc1-482c-a47a-0078747e4b7f')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/8b917184-acc1-482c-a47a-0078747e4b7f')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "O365 New-MailContact ",
+                "description": "This rule will trigger an alert when any New mailcontract operation has been Created and action contains ExternalEmailAddress",
+                "severity": "Informational",
+                "enabled": true,
+                "query": "OfficeActivity\n| where OfficeWorkload == \"Exchange\"\n| where Operation contains \"New-MailContact\"\n| where Parameters contains \"ExternalEmailAddress\"\n| extend Parameters = parse_json(Parameters)\n| mv-expand Parameters\n| extend Parameters = parse_json(Parameters)\n| mv-expand Parameters\n| extend Parameters = parse_json(Parameters)\n| mv-expand Parameters\n| where Parameters contains \"@\"\n| parse Parameters with * \"smtp:\" ExternalAddress: string \n    \"}\" *\n| project TimeGenerated, ExternalAddress, UserId, ClientIP, OrganizationName, OriginatingServer\n",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT5M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "LateralMovement"
+                ],
+                "techniques": [
+                    "T1534"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "UserId"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "OrganizationName"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "ExternalAddress"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "OriginatingServer"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "ClientIP"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        },
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/8b917184-acc1-482c-a47a-0078747e4b7f/actions/9d1de856200742afa6a37a95adebf7db')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/8b917184-acc1-482c-a47a-0078747e4b7f/9d1de856200742afa6a37a95adebf7db')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules/actions",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "ruleId": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/8b917184-acc1-482c-a47a-0078747e4b7f')]",
+                "triggerUri": "[listCallbackURL(concat('/subscriptions/917fcd41-e4bd-42e6-bc5a-c7bf48713bfb/resourceGroups/rg-mgmt-allsubs/providers/Microsoft.Logic/workflows/Informational','/triggers/Microsoft_Sentinel_alert'),'2016-06-01').value]",
+                "logicAppResourceId": "/subscriptions/917fcd41-e4bd-42e6-bc5a-c7bf48713bfb/resourceGroups/rg-mgmt-allsubs/providers/Microsoft.Logic/workflows/Informational",
+                "operatesOn": "Alert"
+            },
+            "dependsOn": [
+                "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/8b917184-acc1-482c-a47a-0078747e4b7f')]"
+            ]
+        }
+    ]
+}

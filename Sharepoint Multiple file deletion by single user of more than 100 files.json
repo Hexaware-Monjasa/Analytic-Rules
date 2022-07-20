@@ -1,0 +1,85 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/aa98f134-5cd3-4b34-960e-18851af9a51d')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/aa98f134-5cd3-4b34-960e-18851af9a51d')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Sharepoint Multiple file deletion by single user of more than 100 files",
+                "description": "This rule will trigger an alert when any user try to delete more than 100 files \nFYI- Have to update the deleted filenames in the Jira Portal To find which files has been deleted by the user, use the below KQL Querry\nOfficeActivity\n| where OfficeWorkload contains \"Sharepoint\"\n| where Operation contains \"FileRecycled\"\n| where ClientIP contains \"Put user Ip\"\n| summarize by SourceFileName\n ",
+                "severity": "High",
+                "enabled": true,
+                "query": "let Threshold = 100;\nOfficeActivity\n| where OfficeWorkload contains \"Sharepoint\"\n| where Operation contains \"FileRecycled\"\n|summarize StartTimeUtc = min(TimeGenerated), EndTimeUtc = max(TimeGenerated), Deleted = count() by UserId, ClientIP,Site_Url\n| where Deleted >= Threshold\n\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Execution"
+                ],
+                "techniques": [
+                    "T1204"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "UserId"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "URL",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Url",
+                                "columnName": "Site_Url"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "ClientIP"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

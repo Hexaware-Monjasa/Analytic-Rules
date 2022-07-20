@@ -1,0 +1,109 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/52200b39-d0a4-4a48-bee8-0dd2a24104be')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/52200b39-d0a4-4a48-bee8-0dd2a24104be')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "O365 Set Mailbox Delete",
+                "description": "This rule will trigger an alert when any set mailbox has been get deleted",
+                "severity": "Informational",
+                "enabled": true,
+                "query": "OfficeActivity\n| where OfficeWorkload contains \"Exchange\"\n| where Operation contains \"Set-Mailbox\"\n| where Parameters contains \"DeliverToMailboxAndForward\"\n| extend Parameters = parse_json(Parameters)\n| mv-expand Parameters\n| extend Value = parse_json(Parameters.Value)\n| where Parameters contains \"ForwardingAddress\"\n| where isempty(Value)\n| project TimeGenerated, UserId, ClientIP, OriginatingServer, OrganizationName",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT5M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Execution"
+                ],
+                "techniques": [
+                    "T1204"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "OrganizationName"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "OriginatingServer"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "UserId"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "ClientIP"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        },
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/52200b39-d0a4-4a48-bee8-0dd2a24104be/actions/9d1de856200742afa6a37a95adebf7db')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/52200b39-d0a4-4a48-bee8-0dd2a24104be/9d1de856200742afa6a37a95adebf7db')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules/actions",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "ruleId": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/52200b39-d0a4-4a48-bee8-0dd2a24104be')]",
+                "triggerUri": "[listCallbackURL(concat('/subscriptions/917fcd41-e4bd-42e6-bc5a-c7bf48713bfb/resourceGroups/rg-mgmt-allsubs/providers/Microsoft.Logic/workflows/Informational','/triggers/Microsoft_Sentinel_alert'),'2016-06-01').value]",
+                "logicAppResourceId": "/subscriptions/917fcd41-e4bd-42e6-bc5a-c7bf48713bfb/resourceGroups/rg-mgmt-allsubs/providers/Microsoft.Logic/workflows/Informational",
+                "operatesOn": "Alert"
+            },
+            "dependsOn": [
+                "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/52200b39-d0a4-4a48-bee8-0dd2a24104be')]"
+            ]
+        }
+    ]
+}

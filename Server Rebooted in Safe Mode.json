@@ -1,0 +1,94 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/197bf5a3-4f11-4f08-b9e5-dc32f46b53d3')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/197bf5a3-4f11-4f08-b9e5-dc32f46b53d3')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "User Account was Created and Acted Suspiciously ",
+                "description": " It will trigger an  Alerts when any account created and further clearing the audit logs in a short time interval. This is typical sign of backdoor account creation and clearing any evidences.",
+                "severity": "High",
+                "enabled": true,
+                "query": "SecurityEvent\n| where EventID == 4720\n// A User Account Was Created\n| where AccountType =~ \"User\"\n| project TimeGenerated,  CreatedEventID = EventID, CreateActivity = Activity, Computer, TargetUserName, UserPrincipalName, AccountUsedToCreate = SubjectAccount, SIDofAccountUsedToCreate = SubjectUserSid, TargetAccount = tolower(TargetAccount), TargetSid\n| join kind= inner (\n  SecurityEvent\n   | where EventID == 1102\n// The audit log was cleared\n| parse EventData with * \"<SubjectUserName>\" UserName : string \n\"<\" *\n| project TimeGenerated, LogClearedEventID = EventID, LogclearedActivity = Activity, Computer,UserName\n) on Computer\n| project TimeGenerated,  CreatedEventID, CreateActivity , Computer, TargetUserName, UserPrincipalName,  AccountUsedToCreate, TargetAccount = tolower(TargetAccount), TargetSid\n\n",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT5M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Execution"
+                ],
+                "techniques": [
+                    "T1204"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "UserPrincipalName"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "CreateActivity"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "CreateActivity"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "TargetAccount"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

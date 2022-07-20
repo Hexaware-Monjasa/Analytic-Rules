@@ -1,0 +1,94 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/a7597f58-ce7a-452c-a393-46a28c57065e')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/a7597f58-ce7a-452c-a393-46a28c57065e')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "A Disabled user account was enabled",
+                "description": "This rule will trigger an alert when any disable account has been get enabled, the rule will check for event id 4725 which is for any user account was disabled and rule will check for event id 4722 which is for any user account got enabled ",
+                "severity": "High",
+                "enabled": true,
+                "query": "SecurityEvent\n| where EventID == 4725\n// A User Account Was Disabled\n| where AccountType =~ \"User\"\n| project TimeGenerated,  DisableEventID = EventID, DisableActivity = Activity, Computer, TargetUserName, UserPrincipalName, AccountUsedToDisable = SubjectAccount, SIDofAccountUsedToDisable = SubjectUserSid, TargetAccount = tolower(TargetAccount), TargetSid\n| join kind= inner (\n  SecurityEvent\n   | where EventID == 4722\n// A user Account was Enabled\n| where AccountType == \"User\"\n| project TimeGenerated, EnableEventID = EventID, EnableActivity = Activity, Computer, TargetUserName, UserPrincipalName, \nAccountUsedToEnable = SubjectAccount, SIDofAccountUsedToEnable = SubjectUserSid, TargetAccount = tolower(TargetAccount), TargetSid\n) on Computer, TargetAccount\n| project EnabledTime= TimeGenerated1, DisableEventID, Computer, AccountUsedToDisable, TargetAccount, EnableActivity, Computer1, AccountUsedToEnable, TargetAccount1\n",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT5M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Persistence"
+                ],
+                "techniques": [
+                    "T1098"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "Computer"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "Computer1"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "TargetAccount"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "TargetAccount1"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

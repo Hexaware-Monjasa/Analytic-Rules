@@ -1,0 +1,100 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/e5161bce-69d9-42fb-a49d-d409398e2a81')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/e5161bce-69d9-42fb-a49d-d409398e2a81')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Sharepoint File Uploaded by a single user",
+                "description": "This rule will trigger an alert when a single user has tried to upload more that 10 file ",
+                "severity": "Informational",
+                "enabled": true,
+                "query": "let Threshold = 10;\nOfficeActivity\n| where OfficeWorkload contains \"Sharepoint\"\n| where Operation contains \"FileUploaded\"\n|summarize StartTimeUtc = min(TimeGenerated), EndTimeUtc = max(TimeGenerated), Uploaded = count() by UserId, ClientIP,Site_Url\n| where Uploaded >= Threshold\n\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Execution"
+                ],
+                "techniques": [
+                    "T0863"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "UserId"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "URL",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Url",
+                                "columnName": "Site_Url"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "ClientIP"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        },
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/e5161bce-69d9-42fb-a49d-d409398e2a81/actions/9d1de856200742afa6a37a95adebf7db')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/e5161bce-69d9-42fb-a49d-d409398e2a81/9d1de856200742afa6a37a95adebf7db')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules/actions",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "ruleId": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/e5161bce-69d9-42fb-a49d-d409398e2a81')]",
+                "triggerUri": "[listCallbackURL(concat('/subscriptions/917fcd41-e4bd-42e6-bc5a-c7bf48713bfb/resourceGroups/rg-mgmt-allsubs/providers/Microsoft.Logic/workflows/Informational','/triggers/Microsoft_Sentinel_alert'),'2016-06-01').value]",
+                "logicAppResourceId": "/subscriptions/917fcd41-e4bd-42e6-bc5a-c7bf48713bfb/resourceGroups/rg-mgmt-allsubs/providers/Microsoft.Logic/workflows/Informational",
+                "operatesOn": "Alert"
+            },
+            "dependsOn": [
+                "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/e5161bce-69d9-42fb-a49d-d409398e2a81')]"
+            ]
+        }
+    ]
+}
