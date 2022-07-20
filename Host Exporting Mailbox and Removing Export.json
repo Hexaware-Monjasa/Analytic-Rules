@@ -1,0 +1,74 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/ff2b4210-4e04-4e0e-a287-7e512ab2911b')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/ff2b4210-4e04-4e0e-a287-7e512ab2911b')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Host Exporting Mailbox and Removing Export",
+                "description": "This hunting query looks for hosts exporting a mailbox from an on-prem Exchange server, followed by\n  that same host removing the export within a short time window. This pattern has been observed by attackers \n  when exfiltrating emails from a target environment. A Mailbox export is unlikely to be a common command run so look for\n  activity from unexpected hosts and accounts.\n  Reference: https://www.volexity.com/blog/2020/12/14/dark-halo-leverages-solarwinds-compromise-to-breach-organizations/'",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "// Adjust the timeframe to change the window events need to occur within to alert\r\n  let timeframe = 1h;\r\n  DeviceProcessEvents\r\n    | where FileName  in~ (\"powershell.exe\", \"cmd.exe\")\r\n    | where ProcessCommandLine  contains 'New-MailboxExportRequest'\r\n    | project-rename NewMailBoxExpCmd = ProcessCommandLine  \r\n    | summarize by DeviceName , timekey = bin(Timestamp, timeframe), NewMailBoxExpCmd, AccountName \r\n    | join kind=inner (DeviceProcessEvents\r\n    | where FileName in~ (\"powershell.exe\", \"cmd.exe\")\r\n    | where ProcessCommandLine contains 'Remove-MailboxExportRequest'\r\n    | project-rename RemoveMailBoxExpCmd = ProcessCommandLine\r\n    | summarize by DeviceName, timekey = bin(Timestamp, timeframe), RemoveMailBoxExpCmd, AccountName) on DeviceName, timekey, AccountName\r\n    | extend commands = pack_array(NewMailBoxExpCmd, RemoveMailBoxExpCmd)  \r\n    | summarize by timekey, DeviceName, tostring(commands), AccountName\r\n    | project-reorder timekey, DeviceName, AccountName, ['commands']\r\n    | extend HostCustomEntity = DeviceName, AccountCustomEntity = AccountName",
+                "queryFrequency": "PT5H",
+                "queryPeriod": "PT5H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Collection"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "AccountCustomEntity"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "HostCustomEntity"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

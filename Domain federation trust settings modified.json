@@ -1,0 +1,74 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/fed2bf4a-df75-4696-bc2d-1e9c76f86f04')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/fed2bf4a-df75-4696-bc2d-1e9c76f86f04')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Domain federation trust settings modified",
+                "description": "This query will find when federation trust settings are changed for a domain or when the domain is changed from managed to federated authentication. Results will relate to when a new Active Directory Federated Service (ADFS) TrustedRealm object, such as a signing certificate, is added.\n  Modification to domain federation settings should be rare, so confirm the added or modified target domain/URL is legitimate administrative behavior.\n  The actor, Nobelium, was observed modifying domain trust settings to subvert existing mechanisms and cause the domain to accept authorization tokens signed with actor-owned certificates. See Customer Guidance on Recent Nation-State Cyber Attacks.\n  To understand why an authorized user may update settings for a federated domain in Office 365, Azure, or Intune, see Update or repair the settings of a federated domain in Office 365, Azure, or Intune.\n  For details on security realms that accept security tokens, see the ADFS Proxy Protocol (MS-ADFSPP) specification: 3.2.5.1.2.4 Security Realm Data.\n  ",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let auditLookback = 1d;\r\n  (union isfuzzy=true \r\n      (\r\n      CloudAppEvents\r\n      | where Timestamp > ago(auditLookback)\r\n      | where ActionType =~ \"Set federation settings on domain.\"\r\n      ),\r\n      (\r\n      CloudAppEvents\r\n      | where Timestamp > ago(auditLookback)\r\n      | where ActionType =~ \"Set domain authentication.\"\r\n      | extend modifiedProperties = parse_json(RawEventData).ModifiedProperties\r\n      | mvexpand modifiedProperties\r\n      | extend newDomainValue=tostring(parse_json(modifiedProperties).NewValue)\r\n      | where newDomainValue has \"Federated\"\r\n      )\r\n  )\r\n  | extend resultStatus = extractjson(\"$.ResultStatus\", tostring(RawEventData), typeof(string))\r\n  | extend targetDisplayName = parse_json(RawEventData).Target[0].ID\r\n  | project Timestamp, ActionType, InitiatingUserOrApp=AccountDisplayName, targetDisplayName, resultStatus, InitiatingIPAddress=IPAddress, UserAgent",
+                "queryFrequency": "PT5H",
+                "queryPeriod": "PT5H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "DefenseEvasion"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "UserAgent"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "InitiatingIPAddress"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

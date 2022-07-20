@@ -1,0 +1,74 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/565b87cf-9874-4927-aaa5-0846d17a1145')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/565b87cf-9874-4927-aaa5-0846d17a1145')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Mail.Read or Mail.ReadWrite permissions added to OAuth application",
+                "description": "This query will find applications that have been granted Mail.Read or Mail.ReadWrite permissions in which the corresponding user recently consented to. It can help identify applications that have been abused to gain access to user email.\n  The actor, Nobelium, was observed modifying existing tenant application permissions to allow them to read user email through the Microsoft Graph API.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let auditLookback = 1d;\r\n  CloudAppEvents\r\n  | where Timestamp > ago(auditLookback)\r\n  | where ActionType == \"Add delegated permission grant.\"\r\n  | extend RawEventData = parse_json(RawEventData)\r\n  | where RawEventData.ResultStatus =~ \"success\"\r\n  | extend UserId = tostring(RawEventData.UserId)\r\n  | extend UserAgent = parse_json(replace('-','',tostring(RawEventData.ExtendedPRoperties[0].Value))).UserAgent\r\n  | extend properties = RawEventData.ModifiedProperties\r\n  | mvexpand properties\r\n  | extend Permissions = properties.NewValue\r\n  | where Permissions has_any (\"Mail.Read\", \"Mail.ReadWrite\")\r\n  | extend PermissionsAddedTo = tostring(RawEventData.Target[3].ID) // Get target of permissions\r\n  | project-away properties, RawEventData\r\n  | join kind=leftouter (CloudAppEvents\r\n      | where Timestamp > ago(auditLookback)\r\n      | where ActionType == \"Consent to application.\"\r\n      | where isnotempty(AccountDisplayName)\r\n      | extend RawEventData = parse_json(RawEventData)\r\n      | extend UserId = tostring(RawEventData.UserId)\r\n      | extend targetInfo = RawEventData.Target\r\n      | extend AppName = tostring(targetInfo[3].ID) // Find app name\r\n      | extend AppId = tostring(targetInfo[4].ID) // Find appId\r\n      | project ConsentTimestamp=Timestamp, UserId, AccountDisplayName, AppName, AppId\r\n  ) on UserId\r\n  | extend ConsentTimestamp = todatetime(format_datetime(ConsentTimestamp, 'MM/dd/yyyy HH:mm')) // Ensure app consent happend close to the same time as the permissions were granted\r\n  | extend PermsTimestamp = todatetime(format_datetime(Timestamp, 'MM/dd/yyyy HH:mm'))\r\n  | where PermsTimestamp -2m <= ConsentTimestamp // ensure consent happened near permissions grant\r\n  | where PermsTimestamp +2m >= ConsentTimestamp\r\n  | project Timestamp, ActionType, InitiatingUser=AccountDisplayName, UserId, InitiatingIP=IPAddress, UserAgent, PermissionsAddedTo, AppName, AppId",
+                "queryFrequency": "PT5H",
+                "queryPeriod": "PT5H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "DefenseEvasion"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "AadUserId",
+                                "columnName": "UserId"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "CloudApplication",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "AppName"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

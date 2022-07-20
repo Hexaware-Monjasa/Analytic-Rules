@@ -1,0 +1,65 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/a302ed9a-7a1b-4556-bf1c-dc752877293e')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/a302ed9a-7a1b-4556-bf1c-dc752877293e')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "PhishingEmailUrlRedirector",
+                "description": "The query helps detect emails associated with the open redirector URL campaign. The campaign's URLs begin with the distinct pattern, hxxps://t[.]domain[.]tld/r/?. Attackers use URL redirection to manipulate users into visiting a malicious website or to evade detection.\n  Reference - https://twitter.com/MsftSecIntel",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "EmailUrlInfo\r\n  | where Url matches regex @\"s?\\:\\/\\/(?:www\\.)?t\\.(?:[\\w\\-\\.]+\\/+)+(?:r|redirect)\\/?\\?\"",
+                "queryFrequency": "PT5H",
+                "queryPeriod": "PT5H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "InitialAccess"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "URL",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Url",
+                                "columnName": "Url"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

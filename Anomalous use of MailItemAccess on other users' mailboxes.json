@@ -1,0 +1,74 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/e9af7ece-163f-4a04-8409-dcc1f9a85594')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/e9af7ece-163f-4a04-8409-dcc1f9a85594')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Anomaly of MailItemAccess by Other Users Mailbox [Nobelium]",
+                "description": "This query looks for users accessing multiple other users' mailboxes, or accessing multiple folders in another user's mailbox.\n  This query is inspired by an Azure Sentinel detection.\n  Reference - https://github.com/Azure/Azure-Sentinel/blob/master/Hunting%20Queries/OfficeActivity/AnomolousUserAccessingOtherUsersMailbox.yaml",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "// Adjust this value to exclude historical activity as known good\r\n  let LookBack = 30d;\r\n  // Adjust this value to change hunting timeframe\r\n  let TimeFrame = 14d;\r\n  // Adjust this value to alter how many mailbox (other than their own) a user needs to access before being included in results\r\n  let UserThreshold = 1;\r\n  // Adjust this value to alter how many mailbox folders in other's email accounts a users needs to access before being included in results.\r\n  let FolderThreshold = 5;\r\n  let relevantMailItems = materialize (\r\n      CloudAppEvents\r\n      | where Timestamp > ago(LookBack)\r\n      | where ActionType == \"MailItemsAccessed\"\r\n      | where RawEventData['ResultStatus'] == \"Succeeded\"\r\n      | extend UserId = tostring(RawEventData['UserId'])\r\n      | extend MailboxOwnerUPN = tostring(RawEventData['MailboxOwnerUPN'])\r\n      | where tolower(UserId) != tolower(MailboxOwnerUPN)\r\n      | extend Folders = RawEventData['Folders']\r\n      | where isnotempty(Folders)\r\n      | mv-expand parse_json(Folders)\r\n      | extend foldersPath = tostring(Folders.Path)  \r\n      | where isnotempty(foldersPath)\r\n      | extend ClientInfoString = RawEventData['ClientInfoString']\r\n      | extend MailBoxGuid = RawEventData['MailboxGuid']\r\n      | extend ClientIP = iif(IPAddress startswith \"[\", extract(\"\\\\[([^\\\\]]*)\", 1, IPAddress), IPAddress)\r\n      | project Timestamp, ClientIP, UserId, MailboxOwnerUPN, tostring(ClientInfoString), foldersPath, tostring(MailBoxGuid)    \r\n  );\r\n  let relevantMailItemsBaseLine = \r\n      relevantMailItems\r\n      | where Timestamp between(ago(LookBack) ..  ago(TimeFrame))    \r\n      | distinct MailboxOwnerUPN, UserId;\r\n  let relevantMailItemsHunting = \r\n      relevantMailItems\r\n      | where Timestamp between(ago(TimeFrame) .. now())\r\n      | distinct ClientIP, UserId, MailboxOwnerUPN, ClientInfoString, foldersPath, MailBoxGuid; \r\n  relevantMailItemsBaseLine \r\n      | join kind=rightanti relevantMailItemsHunting\r\n      on MailboxOwnerUPN, UserId\r\n      | summarize FolderCount = dcount(tostring(foldersPath)),\r\n                  UserCount = dcount(MailBoxGuid),\r\n                  foldersPathSet = make_set(foldersPath),\r\n                  ClientInfoStringSet = make_set(ClientInfoString), \r\n                  ClientIPSet = make_set(ClientIP),\r\n                  MailBoxGuidSet = make_set(MailBoxGuid),\r\n                  MailboxOwnerUPNSet = make_set(MailboxOwnerUPN)\r\n              by UserId\r\n      | where UserCount > UserThreshold or FolderCount > FolderThreshold\r\n      | extend Reason = case( \r\n                              UserCount > UserThreshold and FolderCount > FolderThreshold, \"Both User and Folder Threshold Exceeded\",\r\n                              FolderCount > FolderThreshold and UserCount < UserThreshold, \"Folder Count Threshold Exceeded\",\r\n                              \"User Threshold Exceeded\"\r\n                              )\r\n      | sort by UserCount desc",
+                "queryFrequency": "PT5H",
+                "queryPeriod": "PT5H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Collection"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "UserId"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "MailCluster",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Source",
+                                "columnName": "MailBoxGuidSet"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}
