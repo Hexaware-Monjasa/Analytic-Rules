@@ -1,0 +1,76 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/52609d19-d3db-436b-b870-f5700afd0e9a')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/52609d19-d3db-436b-b870-f5700afd0e9a')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Mapping Azure Activity with Malicious Ip Dynamic List",
+                "description": "This rule will trigger an alert when there is any malicious ip has been observed in the azure activity",
+                "severity": "High",
+                "enabled": true,
+                "query": "let IPList = externaldata(IPAddress:string)[@\"https://intelfeeds.securonix.net/basic_sdsgwe/ipv4_gvewas.csv\"] with (format=\"csv\", ignoreFirstRecord=True);\nlet IPRegex = '[0-9]{1,3}\\\\.[0-9]{1,3}\\\\.[0-9]{1,3}\\\\.[0-9]{1,3}';\nlet azureActIP = AzureActivity\n| summarize by IPAddress = CallerIpAddress, Type;\nlet ipsort = union isfuzzy=true  azureActIP\n| summarize by IPAddress\n| where isnotempty(IPAddress) | where not(ipv4_is_private(IPAddress)) and IPAddress !in ('0.0.0.0','127.0.0.1');\nlet ipMatch = ipsort | where IPAddress in (IPList);\nAzureActivity\n| where CallerIpAddress in (ipMatch)\n| project TimeGenerated, CallerIpAddress, Caller, Type\n| extend timestamp = TimeGenerated, IPCustomEntity = CallerIpAddress, AccountCustomEntity = Caller\n",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT5M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Execution"
+                ],
+                "techniques": [
+                    "T1204"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "AccountCustomEntity"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "IPCustomEntity"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}
