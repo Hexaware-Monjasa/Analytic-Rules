@@ -1,0 +1,83 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/84799309-668c-4873-8606-c7cea765ab14')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/84799309-668c-4873-8606-c7cea765ab14')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Monjasa Possible Ransomware Related Destruction Activity",
+                "description": "This rule will trigger an alert if it detetcts  or identifies any common processes run by ransomware malware to destroy volume shadow copies or clean free space on a drive to prevent a file from being recovered post-encryption",
+                "severity": "High",
+                "enabled": true,
+                "query": "DeviceProcessEvents\n| where Timestamp > ago(7d)\n| where (FileName =~ 'vssadmin.exe' and ProcessCommandLine has \"delete shadows\" and ProcessCommandLine has \"/all\" and ProcessCommandLine has \"/quiet\" ) // Clearing shadow copies\n    or (FileName =~ 'cipher.exe' and ProcessCommandLine contains \"/w\") // Wiping drive free space\n    or (FileName =~ 'schtasks.exe' and ProcessCommandLine has \"/change\" and ProcessCommandLine has @\"\\Microsoft\\Windows\\SystemRestore\\SR\" and ProcessCommandLine has \"/disable\") // Disabling system restore task\n    or (FileName =~ 'fsutil.exe' and ProcessCommandLine has \"usn\" and ProcessCommandLine has \"deletejournal\" and ProcessCommandLine has \"/d\") // Deleting USN journal\n    or (FileName =~ 'icacls.exe' and ProcessCommandLine has @'\"C:\\*\"' and ProcessCommandLine contains '/grant Everyone:F') // Attempts to re-ACL all files on the C drive to give everyone full control\n    or (FileName =~ 'powershell.exe' and (\n            ProcessCommandLine matches regex @'\\s+-((?i)encod?e?d?c?o?m?m?a?n?d?|e|en|enc|ec)\\s+' and replace(@'\\x00','', base64_decode_tostring(extract(\"[A-Za-z0-9+/]{50,}[=]{0,2}\",0 , ProcessCommandLine))) matches regex @\".*(Win32_Shadowcopy).*(.Delete\\(\\)).*\"\n        ) or ProcessCommandLine matches regex @\".*(Win32_Shadowcopy).*(.Delete\\(\\)).*\"\n    ) // This query looks for PowerShell-based commands used to delete shadow copies\n",
+                "queryFrequency": "P7D",
+                "queryPeriod": "P7D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Execution"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "AccountName"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "DeviceName"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "File",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "FileName"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

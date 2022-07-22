@@ -1,0 +1,74 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/0eae59d2-7fdd-4d9e-a859-18be96bf5ea7')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/0eae59d2-7fdd-4d9e-a859-18be96bf5ea7')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Monjasa Detection of Enumeration Users & Groups",
+                "description": "This rule will trigger an alert when any attempt is made to list users or groups using Net commands",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "DeviceProcessEvents \n| where Timestamp > ago(14d) \n| where FileName == 'net.exe' and AccountName != \"\" and ProcessCommandLine !contains '\\\\'  and ProcessCommandLine !contains '/add' \n| where (ProcessCommandLine contains ' user ' or ProcessCommandLine contains ' group ') and (ProcessCommandLine contains ' /do' or ProcessCommandLine contains ' /domain') \n| extend Target = extract(\"(?i)[user|group] (\\\"*[a-zA-Z0-9-_ ]+\\\"*)\", 1, ProcessCommandLine) | filter Target  != '' \n| project AccountName, Target, ProcessCommandLine, DeviceName, Timestamp  \n| sort by AccountName, Target\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Execution"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "AccountName"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "DeviceName"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

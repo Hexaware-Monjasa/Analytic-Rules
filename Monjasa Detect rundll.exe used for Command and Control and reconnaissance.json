@@ -1,0 +1,66 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/abfe73e3-1e18-4335-8693-6b1191d53821')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/abfe73e3-1e18-4335-8693-6b1191d53821')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Monjasa Detect rundll.exe used for Command and Control and reconnaissance ",
+                "description": "This rule will trigger an alert when it detects suspicious rundll.exe activity associated with Trickbot campaigns.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "DeviceNetworkEvents\n| where InitiatingProcessFileName =~ \"rundll32.exe\"\n// Empty command line\n| where InitiatingProcessCommandLine has \"rundll32.exe\" and InitiatingProcessCommandLine !contains \" \" \nand InitiatingProcessCommandLine != \"\" \n| summarize DestinationIPCount = dcount(RemoteIP), make_set(RemoteIP), make_set(RemoteUrl), \nmake_set(RemotePort) by InitiatingProcessCommandLine, DeviceId, bin(Timestamp, 5m)\n\n",
+                "queryFrequency": "PT5H",
+                "queryPeriod": "PT5H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Collection",
+                    "Discovery"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "DeviceId"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

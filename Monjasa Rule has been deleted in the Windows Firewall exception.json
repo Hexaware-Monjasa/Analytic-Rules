@@ -1,0 +1,83 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/d360191f-d553-40c9-84c4-f8f107b70c68')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/d360191f-d553-40c9-84c4-f8f107b70c68')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Monjasa Rule has been deleted in the Windows Firewall exception",
+                "description": "This rule will trigger an alert when any windows firewall rule has been get deleted",
+                "severity": "High",
+                "enabled": true,
+                "query": "// Create watchlist and call out the important machines only\nEvent\n| where EventID == 2006\n// where Computer contains \"DCIMC.imc.internal\"\n| parse RenderedDescription with * \"Rule Name:\" DeletedRuleName: string \n    \" \" * \n| where isnotempty(DeletedRuleName) \n// where RuleName !contains \"@\"\n| parse Message with * \"Message;\" Message1: string \n    \":\" *\n| where isnotempty(Message1)\n| where DeletedRuleName !contains \"VeeamGuestHelper\"\n| project TimeGenerated, Computer, UserName, DeletedRuleName, Message1\n\n\n\n",
+                "queryFrequency": "PT30M",
+                "queryPeriod": "PT30M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Execution"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "Computer"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "DeletedRuleName"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "UserName"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

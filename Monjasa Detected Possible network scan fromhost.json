@@ -1,0 +1,74 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/84f7dc24-5889-429c-a848-9c27ad14b0c5')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/84f7dc24-5889-429c-a848-9c27ad14b0c5')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Monjasa Detected Possible network scan fromhost ",
+                "description": "This rule will trigger an alert when any host has been performing network scan \nLooking for high volume queries against a given RemoteIP, per DeviceName, RemotePort and Process",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let remotePortCountThreshold = 10; // Please change the min value, for a host reaching out to remote ports on a remote IP, that you consider to be threshold for a suspicious behavior \nDeviceNetworkEvents\n| where Timestamp > ago(1d) and RemoteIP startswith \"172.16\" or RemoteIP startswith \"192.168\" \n| summarize\n    by DeviceName, RemoteIP, RemotePort, InitiatingProcessFileName\n| summarize RemotePortCount=dcount(RemotePort) by DeviceName, RemoteIP, InitiatingProcessFileName\n| where RemotePortCount > remotePortCountThreshold\n\n",
+                "queryFrequency": "PT5H",
+                "queryPeriod": "PT5H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "Execution"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "DeviceName"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "RemoteIP"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}

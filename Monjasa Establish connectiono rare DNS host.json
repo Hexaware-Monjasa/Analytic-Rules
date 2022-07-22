@@ -1,0 +1,65 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/b1a04c4d-3bb2-44ee-aff5-92233a68d099')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/b1a04c4d-3bb2-44ee-aff5-92233a68d099')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2021-10-01-preview",
+            "properties": {
+                "displayName": "Monjasa Establish connectiono rare DNS host",
+                "description": "This rule will validate the connections made to the destination to look for  any rare domain host connection has been made.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let LowCountThreshold = 10;\nlet MaxAge = ago(1d);\nDeviceNetworkEvents\n| where Timestamp > MaxAge\n| where isnotempty( RemoteUrl) and RemoteUrl contains \".\"\n| extend RemoteDomain = iff(RemoteUrl matches regex @'^([a-z0-9]+(-[a-z0-9]+)*\\.)+[a-z]{2,}$', tolower(RemoteUrl), tostring(parse_url(RemoteUrl).Host))\n| top-nested 100000 of RemoteDomain by dcount(DeviceId) asc\n| where aggregated_RemoteDomain <= LowCountThreshold \n| join kind=rightsemi (\n    DeviceNetworkEvents\n    | where Timestamp > ago(7d)\n    | where isnotempty( RemoteUrl) and RemoteUrl contains \".\"\n    | extend RemoteDomain = iff(RemoteUrl matches regex @'^([a-z0-9]+(-[a-z0-9]+)*\\.)+[a-z]{2,}$', tolower(RemoteUrl), tostring(parse_url(RemoteUrl).Host))\n) on RemoteDomain \n| extend DomainArray = split(RemoteDomain, '.')\n| extend SecondLevelDomain = strcat(tostring(DomainArray[-2]),'.', tostring(DomainArray[-1])), ThirdLevelDomain = strcat(tostring(DomainArray[-3]), '.', tostring(DomainArray[-2]),'.', tostring(DomainArray[-1]))\n| summarize ConnectionCount = count(), DistinctDevices = dcount(DeviceId) by SecondLevelDomain, ThirdLevelDomain, RemoteDomain\n| where DistinctDevices <= LowCountThreshold \n| top 10000 by DistinctDevices asc\n| order by ConnectionCount asc\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "tactics": [
+                    "CommandAndControl"
+                ],
+                "techniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "RemoteDomain"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null
+            }
+        }
+    ]
+}
